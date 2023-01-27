@@ -93,3 +93,6 @@ We acknowledge support from the the European Research Council (ERC) under the Eu
 
 ![Insitution logos](miscellaneous/institution_logos.png)
 
+## REST School
+
+# text about REST School
