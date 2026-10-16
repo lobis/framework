@@ -64,12 +64,14 @@ endif ()
 
 set(loadMPFR "")
 if (DEFINED MPFR_PATH)
-    set(loadMPFR "export LD_LIBRARY_PATH=${MPFR_PATH}/lib:\${LD_LIBRARY_PATH:-}")
+    set(loadMPFR
+        "export LD_LIBRARY_PATH=${MPFR_PATH}/lib:\${LD_LIBRARY_PATH:-}")
 endif ()
 
 set(loadCRY "")
 if (DEFINED REST_CRY_PATH)
-    set(loadCRY "export LD_LIBRARY_PATH=${REST_CRY_PATH}/lib:\${LD_LIBRARY_PATH:-}")
+    set(loadCRY
+        "export LD_LIBRARY_PATH=${REST_CRY_PATH}/lib:\${LD_LIBRARY_PATH:-}")
 endif ()
 
 set(loadGarfield "")
