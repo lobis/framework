@@ -76,7 +76,7 @@ TEST_F(RunCounterTest, ConcurrentProcessesAllocateUniqueConsecutiveRuns) {
         int run;
         while (input >> run) EXPECT_TRUE(runs.insert(run).second);
     }
-    ASSERT_EQ(runs.size(), processes * allocations);
+    ASSERT_EQ(runs.size(), static_cast<size_t>(processes * allocations));
     EXPECT_EQ(*runs.begin(), 1);
     EXPECT_EQ(*runs.rbegin(), processes * allocations);
     TRestDataBase database;
