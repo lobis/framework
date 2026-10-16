@@ -10,6 +10,9 @@ if [[ -e "$release/validated.json" ]]; then
     exit 2
 fi
 mkdir -p "$release/home/.rest" "$release/system-gtest"
+test -f "$release/system-gtest/include/gtest/gtest.h"
+test -f "$release/system-gtest/lib/libgtest.so.1.11.0"
+test -f "$release/system-gtest/lib/libgtest_main.so.1.11.0"
 export HOME="$release/home" REST_HOME="$release/home"
 source "$stack/root/root-6.34.04/install/bin/thisroot.sh"
 source "$stack/geant4/geant4-v11.0.3/install/bin/geant4.sh"
@@ -19,7 +22,8 @@ cat > "$release/system-gtest/CMakeLists.txt" <<'GTEST'
 cmake_minimum_required(VERSION 3.16)
 project(SystemGTest LANGUAGES CXX)
 add_library(gtest_main INTERFACE)
-target_link_libraries(gtest_main INTERFACE /usr/lib64/libgtest_main.so /usr/lib64/libgtest.so pthread)
+target_include_directories(gtest_main INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
+target_link_libraries(gtest_main INTERFACE ${CMAKE_CURRENT_LIST_DIR}/lib/libgtest_main.so.1.11.0 ${CMAKE_CURRENT_LIST_DIR}/lib/libgtest.so.1.11.0 pthread)
 GTEST
 cmake -S "$source_dir" -B "$release/build" \
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$release/install" \
