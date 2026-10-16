@@ -151,7 +151,7 @@ void TRestTask::InitFromConfigFile() { ReadAllParameters(); }
 void TRestTask::SetArgumentValue(vector<string> arg) {
     if (arg.size() < fNRequiredArgument) {
         PrintArgumentHelp();
-        exit(0);
+        exit(1);
     }
     fArgumentValues = arg;
 }

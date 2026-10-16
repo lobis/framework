@@ -120,11 +120,11 @@ void TRestProcessRunner::BeginOfInit() {
             RESTError << "please make sure the \"TRestFiles\" section is ahead of the "
                          "\"TRestProcessRunner\" section"
                       << RESTendl;
-            exit(0);
+            exit(1);
         }
     } else {
         RESTError << "manager not initialized!" << RESTendl;
-        exit(0);
+        exit(1);
     }
 
     // Exiting as soon as possible in order to avoid seg.fault at TRestThread.
