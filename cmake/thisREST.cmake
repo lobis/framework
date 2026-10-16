@@ -58,18 +58,18 @@ if (${REST_G4} MATCHES "ON")
     set(g4LibPath ":${GEANT4_PATH}/lib/")
     set(loadG4
         "\# if geant4.sh script is found we load the same Geant4 version as used in compilation\nif [[ -f \\\"${GEANT4_BIN_DIR}/geant4.sh\\\" ]]; then
-    [[ -n \\\"\\\${ZSH_VERSION}\\\" ]] && pushd ${GEANT4_BIN_DIR} > /dev/null\n    source ${GEANT4_BIN_DIR}/geant4.sh\n    [[ -n \\\"\\\${ZSH_VERSION}\\\" ]] && popd > /dev/null\nfi\n"
+    [[ -n \\\"\\\${ZSH_VERSION:-}\\\" ]] && pushd ${GEANT4_BIN_DIR} > /dev/null\n    source ${GEANT4_BIN_DIR}/geant4.sh\n    [[ -n \\\"\\\${ZSH_VERSION:-}\\\" ]] && popd > /dev/null\nfi\n"
     )
 endif ()
 
 set(loadMPFR "")
 if (DEFINED MPFR_PATH)
-    set(loadMPFR "export LD_LIBRARY_PATH=${MPFR_PATH}/lib:\$LD_LIBRARY_PATH")
+    set(loadMPFR "export LD_LIBRARY_PATH=${MPFR_PATH}/lib:\${LD_LIBRARY_PATH:-}")
 endif ()
 
 set(loadCRY "")
 if (DEFINED REST_CRY_PATH)
-    set(loadCRY "export LD_LIBRARY_PATH=${REST_CRY_PATH}/lib:\$LD_LIBRARY_PATH")
+    set(loadCRY "export LD_LIBRARY_PATH=${REST_CRY_PATH}/lib:\${LD_LIBRARY_PATH:-}")
 endif ()
 
 set(loadGarfield "")
@@ -89,7 +89,7 @@ source $ENV{GARFIELD_INSTALL}/share/Garfield/setupGarfield.sh
 # if GARFIELD is enabled we load the same Garfield environment used in compilation
 export GARFIELD_HOME=$ENV{GARFIELD_HOME}
 export HEED_DATABASE=\$GARFIELD_HOME/Heed/heed++/database
-export LD_LIBRARY_PATH=\$GARFIELD_HOME/lib:\$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=\$GARFIELD_HOME/lib:\${LD_LIBRARY_PATH:-}
 ")
         set(Garfield_INSTALL "$ENV{GARFIELD_HOME}")
     endif ()
@@ -135,9 +135,9 @@ file( WRITE \${CMAKE_INSTALL_PREFIX}/thisREST.sh
 ${loadLCG}
 
 \# check active shell by checking for existence of _VERSION variable
-if [[ -n \\\"\\\${BASH_VERSION}\\\" ]]; then
+if [[ -n \\\"\\\${BASH_VERSION:-}\\\" ]]; then
     thisfile=\\\${BASH_SOURCE[0]}
-elif [[ -n \\\"\\\${ZSH_VERSION}\\\" ]]; then
+elif [[ -n \\\"\\\${ZSH_VERSION:-}\\\" ]]; then
     thisfile=\\\${(%):-%x}
 else
     echo \\\"Invalid shell! Either source with bash or zsh!\\\"
@@ -155,29 +155,29 @@ ${loadMPFR}
 ${loadCRY}
 ${loadGarfield}
 
-if [ \\\$REST_PATH ] ; then
+if [ -n \\\"\\\${REST_PATH:-}\\\" ] ; then
     echo switching to REST installed in \\\${thisdir}
     _PATH=`echo \\\$PATH | sed -e \\\"s\#\\\${REST_PATH}/bin:\#\#g\\\"`
-    _LD_LIBRARY_PATH=`echo \\\$LD_LIBRARY_PATH | sed -e \\\"s\#\\\${REST_PATH}/lib:\#\#g\\\"`
+    _LD_LIBRARY_PATH=`echo \\\${LD_LIBRARY_PATH:-} | sed -e \\\"s\#\\\${REST_PATH}/lib:\#\#g\\\"`
 else
     _PATH=\\\$PATH
-    _LD_LIBRARY_PATH=\\\$LD_LIBRARY_PATH
+    _LD_LIBRARY_PATH=\\\${LD_LIBRARY_PATH:-}
 fi
 
 export REST_SOURCE=${CMAKE_CURRENT_SOURCE_DIR}
 export REST_PATH=\\\${thisdir}
 # Preserve an explicit REST_HOME (e.g. worker-local state) across setup.
 export REST_HOME=\\\${REST_HOME:-\\\${HOME}}
-export ROOT_INCLUDE_PATH=\\\$REST_PATH/include${Garfield_INCLUDE_ENV}:\\\$ROOT_INCLUDE_PATH
+export ROOT_INCLUDE_PATH=\\\$REST_PATH/include${Garfield_INCLUDE_ENV}:\\\${ROOT_INCLUDE_PATH:-}
 export REST_INPUTDATA=\\\$REST_PATH/data
 export REST_GARFIELD_INCLUDE=${Garfield_INCLUDE_DIRS}
 export REST_GARFIELD_LIB=${Garfield_LIBRARIES}
 export PATH=\\\$REST_PATH/bin:\\\$_PATH
 export LD_LIBRARY_PATH=\\\$REST_PATH/lib:\\\$_LD_LIBRARY_PATH
 # DYLD_LIBRARY_PATH is required by MacOs
-export DYLD_LIBRARY_PATH=\\\$REST_PATH/lib:\\\$LD_LIBRARY_PATH${g4LibPath}
-export LIBRARY_PATH=\\\$REST_PATH/lib:\\\$LIBRARY_PATH
-export PYTHONPATH=${PYTHON_BINDINGS_INSTALL_DIR}:\\\$PYTHONPATH
+export DYLD_LIBRARY_PATH=\\\$REST_PATH/lib:\\\${LD_LIBRARY_PATH:-}${g4LibPath}
+export LIBRARY_PATH=\\\$REST_PATH/lib:\\\${LIBRARY_PATH:-}
+export PYTHONPATH=${PYTHON_BINDINGS_INSTALL_DIR}:\\\${PYTHONPATH:-}
 
 alias restRoot=\\\"restRoot -l\\\"
 alias restRootMacros=\\\"restRoot -l --m\\\"
@@ -223,7 +223,7 @@ setenv ROOT_INCLUDE_PATH \\\${ROOT_INCLUDE_PATH}:\\\$REST_PATH/include
 setenv REST_GARFIELD_INCLUDE ${Garfield_INCLUDE_DIRS}
 setenv REST_GARFIELD_LIB ${Garfield_LIBRARIES}
 setenv PATH \\\$REST_PATH/bin:\\\$PATH
-setenv LD_LIBRARY_PATH \\\$REST_PATH/lib:\\\$LD_LIBRARY_PATH
+setenv LD_LIBRARY_PATH \\\$REST_PATH/lib:\\\${LD_LIBRARY_PATH:-}
 if ( \\\$?LIBRARY_PATH == 0 ) setenv LIBRARY_PATH
 setenv LIBRARY_PATH \\\${LIBRARY_PATH}:\\\$REST_PATH/lib
 setenv PYTHONPATH \\\${PYTHONPATH}:${PYTHON_BINDINGS_INSTALL_DIR}

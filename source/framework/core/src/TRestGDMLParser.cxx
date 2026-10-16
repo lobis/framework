@@ -1,7 +1,7 @@
 #include "TRestGDMLParser.h"
 
-#include <filesystem>
 #include <cstdlib>
+#include <filesystem>
 #include <stdexcept>
 #include <vector>
 
@@ -127,8 +127,8 @@ void TRestGDMLParser::ReplaceEntity() {
         cout << "TRestGDMLParser: Replacing entity: " << entityName << ", file: " << entityFile << endl;
 
         if ((int)entityFile.find("http") != -1) {
-            string entityField = (filesystem::path(fOutputGdmlFilename).parent_path() /
-                                  (entityName + ".xml")).string();
+            string entityField =
+                (filesystem::path(fOutputGdmlFilename).parent_path() / (entityName + ".xml")).string();
             int a = TRestTools::DownloadRemoteFile(entityFile, entityField);
             if (a != 0) {
                 cout << "TRestGDMLParser: Download failed!" << endl;
