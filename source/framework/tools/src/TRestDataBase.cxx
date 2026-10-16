@@ -9,6 +9,9 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <limits>
+#include <sstream>
+#include <stdexcept>
 #include <thread>
 
 #include "TClass.h"
@@ -19,6 +22,68 @@
 #include "TUrl.h"
 
 using namespace std;
+
+namespace {
+// Keep allocation and counter update under the same kernel lock. Locking only
+// the read and write individually permits two processes to allocate one run.
+class RunCounter {
+    int fd = -1;
+
+   public:
+    explicit RunCounter(const string& filename) {
+        fd = open(filename.c_str(), O_RDWR | O_CREAT, 0666);
+        if (fd == -1) throw runtime_error("Cannot open runNumber: " + string(strerror(errno)));
+        int result;
+        do {
+            result = flock(fd, LOCK_EX);
+        } while (result == -1 && errno == EINTR);
+        if (result == -1) {
+            close(fd);
+            fd = -1;
+            throw runtime_error("Cannot lock runNumber");
+        }
+    }
+    ~RunCounter() {
+        if (fd != -1) {
+            flock(fd, LOCK_UN);
+            close(fd);
+        }
+    }
+    RunCounter(const RunCounter&) = delete;
+    RunCounter& operator=(const RunCounter&) = delete;
+
+    int Read() const {
+        char buffer[64] = {};
+        ssize_t size;
+        do {
+            size = pread(fd, buffer, sizeof(buffer) - 1, 0);
+        } while (size == -1 && errno == EINTR);
+        if (size < 0) throw runtime_error("Cannot read runNumber");
+        if (size == 0) return 1;
+        istringstream input(string(buffer, static_cast<size_t>(size)));
+        long long value = 0;
+        if (!(input >> value) || value < 1 || value > numeric_limits<int>::max())
+            throw runtime_error("Invalid runNumber counter");
+        input >> ws;
+        if (!input.eof() || size == static_cast<ssize_t>(sizeof(buffer) - 1))
+            throw runtime_error("Invalid runNumber counter");
+        return static_cast<int>(value);
+    }
+
+    void Write(int value) const {
+        const auto text = to_string(value) + "\n";
+        size_t written = 0;
+        while (written < text.size()) {
+            const auto size = pwrite(fd, text.data() + written, text.size() - written, written);
+            if (size == -1 && errno == EINTR) continue;
+            if (size <= 0) throw runtime_error("Cannot write runNumber");
+            written += static_cast<size_t>(size);
+        }
+        if (ftruncate(fd, text.size()) != 0 || fsync(fd) != 0)
+            throw runtime_error("Cannot persist runNumber");
+    }
+};
+}  // namespace
 
 //////////////////////////////////////////////////////////////////////////
 /// Interface class of REST database accessibility.
@@ -158,30 +223,15 @@ TRestDataBase::TRestDataBase() {
 /// Note that this file saves run number of the **next** run. So it returns
 /// The run number -1.
 int TRestDataBase::get_lastrun() {
-    int runNr = 1;
-    string runFilename = REST_USER_PATH + "/runNumber";
-    bool fileExist = TRestTools::fileExists(runFilename);
-    int fd = open(runFilename.c_str(), O_RDWR | O_CREAT, 0666);
-    if (fd == -1) {
-        RESTError << "Error opening file " << runFilename << strerror(errno) << RESTendl;
+    try {
+        RunCounter counter(REST_USER_PATH + "/runNumber");
+        const int next = counter.Read();
+        counter.Write(next);
+        return next - 1;
+    } catch (const exception& error) {
+        RESTError << error.what() << RESTendl;
         return -1;
     }
-    flock(fd, LOCK_EX);
-    if (!fileExist) {
-        string newRun = to_string(runNr) + "\n";
-        if (write(fd, newRun.c_str(), newRun.size()) == -1)
-            RESTError << "Error writing file " << runFilename << strerror(errno) << RESTendl;
-        fsync(fd);
-    } else {
-        lseek(fd, 0, SEEK_SET);
-        char buffer[64] = {0};
-        ssize_t bytesReaded = read(fd, buffer, sizeof(buffer) - 1);
-        if (bytesReaded > 0) runNr = std::atoi(buffer);
-    }
-    flock(fd, LOCK_UN);
-    close(fd);
-    // the number recorded in "runNumber" file is for the next run, we subtract 1 to get the latest run.
-    return runNr - 1;
 }
 
 ///////////////////////////////////////////////
@@ -197,36 +247,17 @@ int TRestDataBase::get_lastrun() {
 ///
 /// The method in derived class shall follow this rule.
 int TRestDataBase::set_run(DBEntry info, bool overwrite) {
-    int newRunNr = -1;
-    if (info.runNr == 0) {
-        newRunNr = get_lastrun() + 1;
-    } else if (info.runNr > 0) {
-        newRunNr = info.runNr;
-    } else {
+    if (info.runNr < 0) return -1;
+    try {
+        RunCounter counter(REST_USER_PATH + "/runNumber");
+        const int newRunNr = info.runNr == 0 ? counter.Read() : info.runNr;
+        if (newRunNr == numeric_limits<int>::max()) throw runtime_error("runNumber counter exhausted");
+        counter.Write(newRunNr + 1);
+        return newRunNr;
+    } catch (const exception& error) {
+        RESTError << error.what() << RESTendl;
         return -1;
     }
-
-    string runFilename = REST_USER_PATH + "/runNumber";
-    if (TRestTools::isPathWritable(REST_USER_PATH)) {
-        int fd = open(runFilename.c_str(), O_RDWR | O_CREAT, 0666);
-        if (fd == -1) {
-            RESTError << "Error opening file " << runFilename << strerror(errno) << RESTendl;
-            return -1;
-        }
-        flock(fd, LOCK_EX);
-        string newRun = to_string(newRunNr + 1) + "\n";
-        if (write(fd, newRun.c_str(), newRun.size()) == -1)
-            RESTError << "Error writing file " << runFilename << strerror(errno) << RESTendl;
-        fsync(fd);
-        flock(fd, LOCK_UN);
-        close(fd);
-
-    } else {
-        RESTWarning << "runNumber file not writable. auto run number "
-                       "increment is disabled"
-                    << RESTendl;
-    }
-    return newRunNr;
 }
 
 ///////////////////////////////////////////////
