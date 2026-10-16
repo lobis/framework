@@ -80,4 +80,24 @@ TEST_F(GDMLParserTest, RepeatedLoadsPreserveCompiledGeometry) {
     parser.Load(withoutDefine.string());
     EXPECT_EQ(parser.Globals(), nullptr);
 }
+
+TEST_F(GDMLParserTest, SameProcessAndBasenameHaveIndependentWorkspaces) {
+    const auto input = WriteGDML("<define/>");
+    InspectableGDMLParser first;
+    InspectableGDMLParser second;
+    first.fOutputGdmlDirectory = directory.string();
+    second.fOutputGdmlDirectory = directory.string();
+    first.Load(input.string());
+    const auto firstOutput = first.GetOutputGDMLFile();
+    const auto firstBytes = Read(firstOutput);
+    WriteGDML("<define><constant name=\"different\" value=\"2\"/></define>");
+    second.Load(input.string());
+    EXPECT_NE(firstOutput, second.GetOutputGDMLFile());
+    EXPECT_NE(fs::path(firstOutput).parent_path(), fs::path(second.GetOutputGDMLFile()).parent_path());
+    EXPECT_EQ(Read(firstOutput), firstBytes);
+    EXPECT_NE(Read(second.GetOutputGDMLFile()), firstBytes);
+    first.Load(input.string());
+    EXPECT_NE(first.GetOutputGDMLFile(), firstOutput);
+    EXPECT_EQ(Read(firstOutput), firstBytes);
+}
 }  // namespace

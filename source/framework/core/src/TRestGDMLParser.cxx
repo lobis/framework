@@ -1,6 +1,9 @@
 #include "TRestGDMLParser.h"
 
 #include <filesystem>
+#include <cstdlib>
+#include <stdexcept>
+#include <vector>
 
 using namespace std;
 
@@ -55,6 +58,17 @@ void TRestGDMLParser::Load(const string& filename) {
     }
 
     cout << "TRestGDMLParser: Replacing expressions in GDML" << endl;
+    // A PID is not unique across hosts, nor across parser instances in one process.
+    // Reserve a private workspace atomically, including downloaded entity files.
+    filesystem::create_directories(fOutputGdmlDirectory);
+    const auto pattern = (filesystem::path(fOutputGdmlDirectory) / "rest-gdml-XXXXXX").string();
+    vector<char> workspace(pattern.begin(), pattern.end());
+    workspace.push_back('\0');
+    if (mkdtemp(workspace.data()) == nullptr) {
+        throw runtime_error("TRestGDMLParser: Cannot create a private GDML workspace");
+    }
+    const auto filenameNoPath = filesystem::path(filenameAbsolute).filename();
+    fOutputGdmlFilename = (filesystem::path(workspace.data()) / filenameNoPath).string();
     ReplaceEntity();
     fFileString = Replace(fFileString, "= \"", "=\"");
     fFileString = Replace(fFileString, " =\"", "=\"");
@@ -67,17 +81,15 @@ void TRestGDMLParser::Load(const string& filename) {
     ReplaceAttributeWithKeyWord("log(");
     ReplaceAttributeWithKeyWord("exp(");
 
-    string filenameNoPath = TRestTools::SeparatePathAndName(filenameAbsolute).second;
-    // we have to use a unique identifier on the file to prevent collision when launching multiple jobs
-    fOutputGdmlFilename = fOutputGdmlDirectory + "PID" + std::to_string(getpid()) + "_" + filenameNoPath;
     cout << "TRestGDMLParser: Creating temporary file at: \"" << fOutputGdmlFilename << "\"" << endl;
-
-    filesystem::create_directories(fOutputGdmlDirectory);
 
     ofstream outputFile;
     outputFile.open(fOutputGdmlFilename, ios::trunc);
     outputFile << fFileString << endl;
     outputFile.close();
+    if (!outputFile) {
+        throw runtime_error("TRestGDMLParser: Cannot write compiled geometry");
+    }
 
     std::ifstream fileToCheckExistence(fOutputGdmlFilename);
     if (!fileToCheckExistence) {
@@ -90,7 +102,7 @@ TGeoManager* TRestGDMLParser::CreateGeoManager() {
     // We must change to the gdml file directory, otherwise ROOT cannot load.
     if (!fOutputGdmlFilename.empty()) {
         const auto currentPath = filesystem::current_path();
-        filesystem::current_path(fOutputGdmlDirectory);
+        filesystem::current_path(filesystem::path(fOutputGdmlFilename).parent_path());
         auto geoManager = new TGeoManager();
         geoManager->Import(fOutputGdmlFilename.c_str());
         filesystem::current_path(currentPath);
@@ -115,8 +127,8 @@ void TRestGDMLParser::ReplaceEntity() {
         cout << "TRestGDMLParser: Replacing entity: " << entityName << ", file: " << entityFile << endl;
 
         if ((int)entityFile.find("http") != -1) {
-            string entityField =
-                fOutputGdmlDirectory + "PID" + std::to_string(getpid()) + "_" + entityName + ".xml";
+            string entityField = (filesystem::path(fOutputGdmlFilename).parent_path() /
+                                  (entityName + ".xml")).string();
             int a = TRestTools::DownloadRemoteFile(entityFile, entityField);
             if (a != 0) {
                 cout << "TRestGDMLParser: Download failed!" << endl;
