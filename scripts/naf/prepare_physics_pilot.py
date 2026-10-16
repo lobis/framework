@@ -44,6 +44,11 @@ def main():
     for name in ("physics_pilot.py", "validate_transport.C"):
         shutil.copyfile(scripts / name, inputs / name)
     tree = ET.parse(cell["rml_path"])
+    run = tree.getroot().find("TRestRun")
+    run.set("title", "REST fork finite photon and native response validation")
+    for item in run.findall("parameter"):
+        if item.get("name") == "runTag":
+            item.set("value", "forkPhotonNativeValidation_diagnosticOnly")
     metadata = tree.getroot().find("TRestGeant4Metadata")
     for item in metadata.findall("parameter"):
         if item.get("name") == "gdmlFile":
