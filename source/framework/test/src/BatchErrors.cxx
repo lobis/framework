@@ -5,7 +5,10 @@
 namespace {
 class RequiredArgumentTask : public TRestTask {
    public:
-    RequiredArgumentTask() { fNRequiredArgument = 1; }
+    RequiredArgumentTask() {
+        fNRequiredArgument = 1;
+        SetMode(TASK_CPPCMD);
+    }
 };
 
 TEST(BatchErrors, MissingManagerExitsWithFailure) {

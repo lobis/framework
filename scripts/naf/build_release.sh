@@ -5,7 +5,7 @@ release=${1:?Usage: build_release.sh ABSOLUTE_NEW_RELEASE_DIRECTORY}
 case "$release" in /*) ;; *) echo 'Release directory must be absolute' >&2; exit 2;; esac
 source_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 stack=/data/dust/group/iaxo/software/lobis
-if [[ -e "$release/validated.json" ]]; then
+if [[ -e "$release/validated.json" || -e "$release/install/validated.json" ]]; then
     echo 'Refusing to rebuild a validated release' >&2
     exit 2
 fi
