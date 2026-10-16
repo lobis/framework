@@ -22,7 +22,7 @@ cat > "$release/system-gtest/CMakeLists.txt" <<'GTEST'
 cmake_minimum_required(VERSION 3.16)
 project(SystemGTest LANGUAGES CXX)
 add_library(gtest_main INTERFACE)
-target_include_directories(gtest_main INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
+target_include_directories(gtest_main SYSTEM INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
 target_link_libraries(gtest_main INTERFACE ${CMAKE_CURRENT_LIST_DIR}/lib/libgtest_main.so.1.11.0 ${CMAKE_CURRENT_LIST_DIR}/lib/libgtest.so.1.11.0 pthread)
 GTEST
 cmake -S "$source_dir" -B "$release/build" \
