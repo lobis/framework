@@ -37,5 +37,5 @@ cmake --build "$release/build" --parallel "${BUILD_CPUS:-4}"
 cmake --install "$release/build"
 source "$release/install/thisREST.sh"
 ctest --test-dir "$release/build" \
-    -R 'FrameworkCore|GDMLParserTest|RunCounterTest|BatchErrors|RestRoot.ExpressionArguments|RestSetup' \
+    -R 'FrameworkCore|GDMLParserTest|RunCounterTest|BatchErrors|RestRoot.ExpressionArguments|Setup.RestHome' \
     --output-on-failure

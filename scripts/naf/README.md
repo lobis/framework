@@ -17,8 +17,9 @@ run-number allocation.
 The latest detector library already includes the channel-specific smearing
 correction previously carried as a local NAF patch. Do not reapply it.
 
-Before activation, preserve the validated local gas definitions and tables
-inside the new installation and point its dataURL gas entries at that snapshot.
+Before activation, run `pin_gas_resources.py /absolute/release/install` to
+preserve the validated local gas definitions and tables inside the new
+installation and point its dataURL gas entries at that snapshot.
 Run `prepare_physics_pilot.py /absolute/release` and prepare its `pilot.sh`
 with the explicit new `--rest-install`. This pilot transports 200 photons at
 5.9 keV inside the retained detector geometry and checks seed, parent metadata,
@@ -46,6 +47,12 @@ and transfer separately; a transport timer does not reserve enough scheduler
 time for the full job. Keep current aggregate quota governors, failure recovery,
 scientific closure checks, and the generic eight-job materialization cap.
 Preparing a campaign does not reserve storage or authorize its submission.
+Run `check_capacity.py --jobs N --output-mb M --report admission.json` immediately
+before submission. It charges all registered foreign factories at their possible
+concurrency, retains 20 GiB free DUST plus 8 GiB for other activity, checks actual
+DESY and CERNBox observations, and refuses unknown active DUST writers. This is
+a read-only admission observation, not an account-wide storage reservation;
+keep the live quota governors and their existing concurrency controls.
 
 Campaigns with frozen custom cosmic samplers and physical-parent observers need
 their own migration pilot. This release's photon diagnostic does not validate
